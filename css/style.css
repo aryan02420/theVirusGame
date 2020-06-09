@@ -4,6 +4,10 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   max-width: 800px;
   width: 95%;
@@ -36,31 +40,10 @@ canvas {
   border-radius: 6px;
 }
 
-/* @media all and (display-mode: fullscreen) {
-  body {
-    max-width: 100%;
-    width: 100vw;
-    height: 100vh;
-    margin: auto;
-    background-color: #0a0a0a;
-  }
-
-  body>* {
-    display: none;
-  }
-
-  #game-canvas {
-    display: block;
-    width: 100vw;
-    height: auto;
-    max-height: 100vh;
-    max-width: calc(100vh * 4 / 3);
-    margin: auto;
-  }
-} */
-
-
-html:fullscreen body {
+/* html:fullscreen body,
+html:-webkit-full-screen body,
+html:-moz-full-screen body,
+html:-ms-fullscreen body {
   max-width: 100%;
   width: 100vw;
   height: 100vh;
@@ -68,15 +51,54 @@ html:fullscreen body {
   background-color: #0a0a0a;
 }
 
-html:fullscreen body>* {
+html:fullscreen body>*,
+html:-webkit-full-screen body>*,
+html:-moz-full-screen body>*,
+html:-ms-fullscreen body>* {
   display: none;
 }
 
-html:fullscreen #game-canvas {
+html:fullscreen #game-canvas,
+html:-webkit-full-screen #game-canvas,
+html:-moz-full-screen #game-canvas,
+html:-ms-fullscreen #game-canvas{
   display: block;
   width: 100vw;
   height: auto;
   max-height: 100vh;
   max-width: calc(100vh * 4 / 3);
   margin: auto;
+} */
+
+
+#configgrid {
+  display: grid;
+  grid-template-rows: repeat(1fr, 4) auto;
+  grid-template-columns: auto 6.2rem;
+  grid-gap: 0.2rem;
+}
+
+#gamestate {
+  grid-column: 1/2;
+  grid-row: 1/6;
+}
+
+textarea {
+  height: 90vh;
+}
+
+button, input, select {
+  cursor: pointer;
+}
+
+button, textarea, input, select {
+  background-color: #fffffa;
+  border: 1.5px solid black;
+  border-radius: 8px;
+  padding: 0.5rem;
+  width: 100%;
+}
+
+button:hover, input:hover, select:hover {
+  background-color: #dde;
 }
