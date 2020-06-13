@@ -27,17 +27,17 @@
   <section>
     <h3>Game State</h3>
     <div id="configgrid">
-      <textarea id="gamestate" value='' onchange="setDownloadURL();"></textarea>
+      <textarea id="gamestate" value='' onchange=""></textarea>
       <button id="gamestate-load" onclick="resetup();">Load</button>
-      <button id="gamestate-download"><a href="" id="gamestate-download-link" download>Download</a></button>
+      <button id="gamestate-download"><a href="" id="gamestate-download-link" download="virus.txt">Download</a></button>
       <div>
-        <label for="gamestate-file">From File:</label>
+        <label for="gamestate-file" onchange="previewFile()">From File:</label>
         <input type="file" name="gamestate-file" id="gamestate-file" />
       </div>
       <div>
         <label for="gamestate-presets">Presets:</label>
-        <select name="gamestate-presets" id="gamestate-presets" onchange="loadpreset()">
-          <!-- <option value="preset">preset</option> -->
+        <select name="gamestate-presets" id="gamestate-presets" oninput="loadpreset()">
+          <option value="custom">custom</option>
         </select>
       </div>
     </div>
@@ -46,25 +46,46 @@
   <script>
     function changeGamestate(data) {
       document.getElementById('gamestate').value = JSON.stringify(data, null, 2);
-      resetup();
+      setup();
       document.location = '#';
       setDownloadURL();
     }
+
     function loadpreset() {
       let d = document.getElementById('gamestate-presets').value;
       changeGamestate(gamedata[d]);
     }
+
     function setDownloadURL() {
-      // e = document.getElementById('gamestate-download-link');
-      // t = document.getElementById('gamestate');
-      // d = t.value.toDataURL('text/plain');
-      // console.log(d)
-      // e.setAttribute("href", d);
+      const e = document.getElementById('gamestate-download-link');
+      const t = document.getElementById('gamestate');
+      const d = encodeURIComponent(t.value);
+      e.setAttribute("href", 'data:text/html;charset=utf-8,' + d);
     }
+
+    // read and display file
+    // https://stackoverflow.com/questions/18933085/display-text-file-in-javascript
+    document
+    .getElementById('gamestate-file')
+    .addEventListener(
+        'input',
+        function () {
+            var fr = new FileReader();
+            fr.onload = function () {
+                document.getElementById('gamestate').value = this.result;
+                resetup();
+                document.getElementById('gamestate-file').value="";
+            };
+            fr.readAsText(this.files[0]);
+        }
+    );
+
     for (preset of Object.keys(gamedata)) {
       parent = document.getElementById('gamestate-presets');
-      parent.innerHTML += '<option value="'+preset+'"'+(preset=="normal"?"selected":"")+'>'+preset+'</option>';
+      parent.innerHTML += '<option value="' + preset + '">' + preset + '</option>';
     }
+
+
     changeGamestate(gamedata.normal);
   </script>
   <script src="js/sketch.js"></script>

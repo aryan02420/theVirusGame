@@ -1,6 +1,9 @@
 // images
 let backgroundImage, virusRed, virusGreen, virusYellow, energyOrb, virusHover, virusConnected, arrow;
 
+// sounds
+let plop, plopAlt, suck, suckAlt, bgm;
+
 // game state variables
 let config = [];
 let initialstate = [];
@@ -9,6 +12,7 @@ let moves = [];
 let action = 1; // 1 = GIVE to neighbors // -1 = TAKE from neighbours
 let mode = 0; // 0 = normal gameplay // 1 = affect only single node (to setup the board initially)
 let inputConfig;
+let mute = 1;
 let debug = 0;
 
 // variables for animation
@@ -24,8 +28,10 @@ let lightColor, darkColor;
 let actionButton = new Button("‹ ⊙ ›", 0, 0, 100, 40);
 let undoButton = new Button("⤺ Undo", 101, 0, 100, 40);
 let resetButton = new Button("↺ Reset", 202, 0, 100, 40);
-let modeButton = new Button("⏸", 637, 0, 40, 40);
-let fulscreenButton = new Button("🔳", 678, 0, 40, 40);
+let solveButton = new Button("Solve", 303, 0, 100, 40);
+let modeButton = new Button("⏸", 596, 0, 40, 40);
+let muteButton = new Button("M", 637, 0, 40, 40);
+let fullscreenButton = new Button("🔳", 678, 0, 40, 40);
 let viewCodeButton = new Button("</>", 719, 0, 40, 40)
 let helpButton = new Button("[ℹ]", 760, 0, 40, 40);
 
@@ -43,6 +49,12 @@ function preload() {
   virusHover = loadImage('images/hover.png')
   virusConnected = loadImage('images/connected.png')
   arrow = loadImage('images/arrow.png')
+  soundFormats('ogg');
+  plop = loadSound('sound/plop.ogg');
+  plopAlt = loadSound('sound/plopalt.ogg');
+  suck = loadSound('sound/suck.ogg');
+  suckAlt = loadSound('sound/suckalt.ogg');
+  bgm = loadSound('sound/bgm.ogg');
 }
 
 // initialize canvas
@@ -57,12 +69,17 @@ function setup() {
   lightColor = color(255, 255, 200);
   darkColor = color(39, 48, 53);
   strokeWeight(3);
+  masterVolume(0.3);
+  bgm.playMode('restart');
   currentstate = initialstate;
   moves = [];
   calcStats();
   drawBG();
   drawNodes();
   drawUI();
+  if (mute == 0) {
+    bgm.loop();
+  }
 }
 
 // reads inputs
@@ -75,6 +92,8 @@ function readInput() {
 // start a new game with different config
 function resetup() {
   setup();
+  document.getElementById('gamestate-presets').selectedIndex = 0;
+  setDownloadURL();
 }
 
 // display hover effects
@@ -92,8 +111,9 @@ function mouseClicked() {
 
   // when a node is clicked, pass its index and action to move()
   for (const [i, node] of config.entries()) {
-    if (dist(node[0][0], node[0][1], mouseX, mouseY) < 15) {
+    if (dist(node[0][0], node[0][1], mouseX, mouseY) < 18) {
       move(i, action);
+      playSound(action);
     }
   }
 
@@ -113,23 +133,42 @@ function mouseClicked() {
     reset();
   }
 
+  // solve button clicked?
+  if (solveButton.clicked()) {
+    for (let [i, val] of currentstate.entries()) {
+      if (val < 0) {
+        move(i, -1);
+      }
+    }
+  }
+
   // mode button clicked?
   // 1 = Edit mode: to make changes to board
   // 0 = Play mode
   if (modeButton.clicked()) {
     mode = (mode + 1) % 2;
-    moves = [];
     modeButton.text = (mode == 1 ? "▶" : "⏸");
 
     // append the changes to DOM
     if (mode == 0) {
-      select('#gamestate').value('{"config":'+JSON.stringify(config)+',"initialstate":'+JSON.stringify(initialstate)+'}')
+      select('#gamestate').value('{"config":' + JSON.stringify(config, null, 2) + ',"initialstate":' + JSON.stringify(initialstate) + '}');
+      resetup();
     }
 
   }
 
+  // mute button clicked?
+  if (muteButton.clicked()) {
+    mute = (mute+1)%2;
+    if (mute==1) {
+      bgm.pause();
+    } else {
+      bgm.loop();
+    }
+  }
+
   // fullscreen button clicked?
-  if (fulscreenButton.clicked()) {
+  if (fullscreenButton.clicked()) {
     // fullscreen(!fullscreen());
     // toggleFullscreen();
   }
@@ -192,6 +231,25 @@ function move(_node, _action) {
   }
 }
 
+// click sound effects
+function playSound(_action) {
+  let alt = random();
+  if (action == 1) {
+    if (alt >= 0.8) {
+      plopAlt.play();
+    } else {
+      plop.play()
+    }
+  }
+  if (action == -1) {
+    if (alt >= 0.8) {
+      suckAlt.play();
+    } else {
+      suck.play()
+    }
+  }
+}
+
 // draw bg and connections between nodes.
 function drawBG() {
 
@@ -214,7 +272,7 @@ function drawOverlays() {
   for (const [i, node] of config.entries()) {
     let x1 = node[0][0];
     let y1 = node[0][1];
-    if (dist(x1, y1, mouseX, mouseY) < 15) {
+    if (dist(x1, y1, mouseX, mouseY) < 18) {
       if (mode == 0) {
         for (const connectednode of node[1]) {
           let x2 = config[connectednode][0][0];
@@ -251,7 +309,7 @@ function drawNodes() {
     if (debug) {
       push();
       fill(255);
-      text(i.toString(), config[i][0][0]-18, config[i][0][1]-18);
+      text(i.toString(), config[i][0][0] - 18, config[i][0][1] - 18);
       pop();
     }
     noStroke();
@@ -270,9 +328,11 @@ function drawUI() {
   actionButton.show();
   undoButton.show();
   resetButton.show();
+  solveButton.show();
   modeButton.show();
+  muteButton.show();
   helpButton.show();
-  fulscreenButton.show();
+  fullscreenButton.show();
   viewCodeButton.show();
   lightColor.setAlpha(255);
   fill(lightColor);
@@ -307,6 +367,7 @@ function calcStats() {
   Winnable = (Money >= Genus);
 }
 
+// FIXME
 // toggle fullscreen from w3schools
 function toggleFullscreen() {
   let element = document.getElementById("defaultCanvas0");
