@@ -2,7 +2,7 @@
 let backgroundImage, virusRed, virusGreen, virusYellow, energyOrb, virusHover, virusConnected, arrow;
 
 // sounds
-let plop, plopAlt, suck, suckAlt, bgm;
+let plopSFX, plopAltSFX, suckSFX, suckAltSFX, bgm, undoSFX;
 
 // game state variables
 let config = [];
@@ -11,7 +11,6 @@ let currentstate = [];
 let moves = [];
 let action = 1; // 1 = GIVE to neighbors // -1 = TAKE from neighbours
 let mode = 0; // 0 = normal gameplay // 1 = affect only single node (to setup the board initially)
-let inputConfig;
 let mute = 1;
 let debug = 0;
 
@@ -50,11 +49,12 @@ function preload() {
   virusConnected = loadImage('images/connected.png')
   arrow = loadImage('images/arrow.png')
   soundFormats('ogg');
-  plop = loadSound('sound/plop.ogg');
-  plopAlt = loadSound('sound/plopalt.ogg');
-  suck = loadSound('sound/suck.ogg');
-  suckAlt = loadSound('sound/suckalt.ogg');
+  plopSFX = loadSound('sound/plop.ogg');
+  plopAltSFX = loadSound('sound/plopalt.ogg');
+  suckSFX = loadSound('sound/suck.ogg');
+  suckAltSFX = loadSound('sound/suckalt.ogg');
   bgm = loadSound('sound/bgm.ogg');
+  undoSFX = loadSound('sound/undo.ogg');
 }
 
 // initialize canvas
@@ -84,38 +84,44 @@ function setup() {
 
 // reads inputs
 function readInput() {
-  inputConfig = JSON.parse(select('#gamestate').value());
+  let inputConfig = JSON.parse(select('#gamestate').value());
   config = inputConfig.config;
   initialstate = inputConfig.initialstate;
 }
 
-// start a new game with different config
-function resetup() {
-  setup();
-  document.getElementById('gamestate-presets').selectedIndex = 0;
-  setDownloadURL();
-}
-
 // display hover effects
 function mouseMoved() {
+  drawAll();
+}
 
-  drawBG();
-  drawOverlays();
-  drawNodes();
-  drawUI();
+// if mouse has moved return true
+function checkMouseMoved() {
+  let checkX = (mouseX == pmouseX);
+  let checkY = (mouseY == pmouseY);
+  return !(checkX && checkY);
+}
 
+// change position of nodes in edit mode
+function mouseDragged() {
+  let nodeIndex = getNode();
+  if (mode == 1 && nodeIndex >= 0) {
+    let pos = config[nodeIndex][0];
+    pos[0] = mouseX;
+    pos[1] = mouseY;
+  }
+  drawAll();
 }
 
 // check for user input
 function mouseClicked() {
 
   // when a node is clicked, pass its index and action to move()
-  for (const [i, node] of config.entries()) {
-    if (dist(node[0][0], node[0][1], mouseX, mouseY) < 18) {
-      move(i, action);
-      playSound(action);
-    }
+  let nodeIndex = getNode();
+  if (nodeIndex >= 0) {
+    move(nodeIndex, action);
+    playSound(action);
   }
+
 
   // action (GIVE or TAKE) button clicked?
   if (actionButton.clicked()) {
@@ -126,6 +132,7 @@ function mouseClicked() {
   // undo button clicked?
   if (undoButton.clicked() && moves.length != 0) {
     undo();
+    undoSFX.play();
   }
 
   // reset button clicked?
@@ -151,8 +158,11 @@ function mouseClicked() {
 
     // append the changes to DOM
     if (mode == 0) {
-      select('#gamestate').value('{"config":' + JSON.stringify(config, null, 2) + ',"initialstate":' + JSON.stringify(initialstate) + '}');
-      resetup();
+      let str = '{"config":' + JSON.stringify(config) + ',"initialstate":' + JSON.stringify(initialstate) + '}'
+      select('#gamestate').value(formatJSON(str));
+      gsp.selectedIndex = 0;
+      setup();
+      setDownloadURL();
     }
 
   }
@@ -184,7 +194,7 @@ function mouseClicked() {
     window.open('https://github.com/aryan02420/theVirusGame', '_blank');
   }
 
-  drawUI();
+  drawAll();
 
 }
 
@@ -231,21 +241,31 @@ function move(_node, _action) {
   }
 }
 
+// return the id of node currently interacting width
+function getNode() {
+  for (const [i, node] of config.entries()) {
+    if (dist(node[0][0], node[0][1], mouseX, mouseY) < 18) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 // click sound effects
 function playSound(_action) {
   let alt = random();
   if (action == 1) {
     if (alt >= 0.8) {
-      plopAlt.play();
+      plopAltSFX.play();
     } else {
-      plop.play()
+      plopSFX.play()
     }
   }
   if (action == -1) {
     if (alt >= 0.8) {
-      suckAlt.play();
+      suckAltSFX.play();
     } else {
-      suck.play()
+      suckSFX.play()
     }
   }
 }
@@ -269,25 +289,25 @@ function drawBG() {
 
 // draw arrows and hover effect
 function drawOverlays() {
-  for (const [i, node] of config.entries()) {
+  let nodeIndex = getNode();
+  if (nodeIndex >= 0) {
+    let node = config[nodeIndex];
     let x1 = node[0][0];
     let y1 = node[0][1];
-    if (dist(x1, y1, mouseX, mouseY) < 18) {
-      if (mode == 0) {
-        for (const connectednode of node[1]) {
-          let x2 = config[connectednode][0][0];
-          let y2 = config[connectednode][0][1];
-          let angle = Math.atan2(y2 - y1, x2 - x1) + (action == -1 ? PI : 0);
-          let x3 = (action == 1 ? x1 : x2) + 29 * cos(angle);
-          let y3 = (action == 1 ? y1 : y2) + 29 * sin(angle);
-          // let x3 = x1 + action*30*cos(angle);
-          // let y3 = y1 + action*30*sin(angle);
-          imageAdv(arrow, x3, y3, 10, 10, angle);
-          image(virusConnected, x2, y2, 48, 48);
-        }
+    if (mode == 0) {
+      for (const connectednode of node[1]) {
+        let x2 = config[connectednode][0][0];
+        let y2 = config[connectednode][0][1];
+        let angle = Math.atan2(y2 - y1, x2 - x1) + (action == -1 ? PI : 0);
+        let x3 = (action == 1 ? x1 : x2) + 29 * cos(angle);
+        let y3 = (action == 1 ? y1 : y2) + 29 * sin(angle);
+        // let x3 = x1 + action*30*cos(angle);
+        // let y3 = y1 + action*30*sin(angle);
+        imageAdv(arrow, x3, y3, 10, 10, angle);
+        image(virusConnected, x2, y2, 48, 48);
       }
-      image(virusHover, node[0][0], node[0][1], 48, 48);
     }
+    image(virusHover, node[0][0], node[0][1], 48, 48);
   }
 }
 
@@ -350,6 +370,13 @@ function drawUI() {
   text(statusText, 400, 580);
   pop();
 
+}
+
+function drawAll() {
+  drawBG();
+  drawOverlays();
+  drawNodes();
+  drawUI();
 }
 
 // calculate stats
@@ -457,6 +484,16 @@ function animate() {
       mouseMoved();
     }
   }
+}
+
+// is the game completed?
+function checkSolved() {
+  for (const val of currentstate) {
+    if (val < 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function draw() {
